@@ -1,0 +1,21 @@
+{
+  "name": "focus-pomo",
+  "productName": "Pomo",
+  "version": "1.0.0",
+  "description": "A Pomodoro app that mutes system audio for deep focus.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "keywords": [
+    "pomodoro",
+    "focus",
+    "utility",
+    "electron"
+  ],
+  "author": "Guido He",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^31.2.1"
+  }
+}
