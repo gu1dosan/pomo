@@ -117,19 +117,19 @@ app.on('activate', () => {
   }
 });
 
-// --- NEW: IPC Handler for Listing Running Apps ---
+// --- IPC Handler for Listing Running Apps ---
 
 ipcMain.handle('apps:list', async () => {
     let command, parseFunction, apps = [];
 
     if (process.platform === 'win32') {
-        // Windows: Revert to verbose task list to get Window Title (for display name)
-        command = 'tasklist /v /fo csv /nh';
+        // Windows: Reverted to simple task list, which returns only the ImageName.
+        command = 'tasklist /fo csv /nh';
         
         parseFunction = (stdout) => {
             const regex = /"((?:[^"]|"")*)"/g;
             const lines = stdout.trim().split('\n');
-            const appMap = new Map(); // Use map to ensure unique ImageName/Title combinations
+            const appMap = new Map(); // Use map to ensure unique ImageName
             
             const systemBlacklist = ['System', 'svchost.exe', 'conhost.exe', 'explorer.exe', 'taskhostw.exe', 'audiodg.exe', 'lsass.exe', 'wininit.exe', 'RuntimeBroker.exe', 'electron'];
 
@@ -140,20 +140,20 @@ ipcMain.handle('apps:list', async () => {
                     fields.push(match[1].replace(/""/g, '"'));
                 }
 
-                const [imageName, , , , , , , , windowTitle] = fields;
+                // Extract only the ImageName (first field)
+                const [imageName] = fields;
                 
                 if (imageName && 
                     !systemBlacklist.includes(imageName) && 
                     imageName.length > 5) 
                 {
-                    // Use ImageName as the kill ID
+                    // Use ImageName as the kill ID and the display name
                     let killId = imageName.replace(/\.exe$/i, '').trim();
-                    // Use Window Title or a fallback for display name
-                    let displayName = (windowTitle && windowTitle !== 'N/A' && windowTitle.length > 5) ? windowTitle : killId;
-                    let detail = imageName; // Use imageName as the detail
+                    let displayName = killId;
+                    let detail = imageName; 
                     
-                    // Create a unique key using both ID and Detail for programs like Chrome/Canary
-                    const uniqueKey = `${killId}|${detail}`; 
+                    // Use killId as unique key for non-verbose output
+                    const uniqueKey = killId; 
                     
                     if (!appMap.has(uniqueKey)) {
                         appMap.set(uniqueKey, {
@@ -212,11 +212,11 @@ ipcMain.handle('apps:list', async () => {
                 if (name.length > 3 && !blacklist.includes(name) && !name.includes('/')) {
                     // Use the name as both ID, display, and detail for simplicity on Linux
                     if (!appMap.has(name)) {
-                         appMap.set(name, {
-                            id: name,
-                            display: name,
-                            detail: name
-                        });
+                           appMap.set(name, {
+                                id: name,
+                                display: name,
+                                detail: name
+                            });
                     }
                 }
             }

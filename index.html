@@ -137,7 +137,7 @@
         height: 16px;
     }
     
-    /* App Kill List Display Styles (NEW) */
+    /* App Kill List Display Styles */
     #appKillListContainer {
         border: 1px solid var(--secondary);
         border-radius: 4px;
@@ -158,17 +158,44 @@
         font-size: 0.85rem;
         border-bottom: 1px dashed #333;
         display: flex;
-        flex-direction: column;
+        flex-direction: row; 
+        justify-content: space-between;
+        align-items: center;
     }
     
     #killListDisplay li:last-child {
         border-bottom: none;
     }
     
+    #killListDisplay li .content-wrapper {
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+        min-width: 0;
+        padding-right: 10px; /* Space before button */
+    }
+
     #killListDisplay li .detail {
         font-size: 0.7rem;
         color: #777;
         word-break: break-all;
+    }
+
+    /* Remove button style */
+    .remove-app-btn {
+        background: none;
+        border: none;
+        color: var(--primary);
+        font-size: 1.2rem;
+        line-height: 1;
+        cursor: pointer;
+        padding: 0 5px;
+        border-radius: 4px;
+        transition: background-color 0.1s;
+    }
+
+    .remove-app-btn:hover {
+        background-color: rgba(224, 75, 75, 0.2);
     }
     
     /* App List Button Style */
@@ -245,11 +272,13 @@
         padding: 8px;
         border-bottom: 1px dashed #333;
         cursor: pointer;
-        transition: background-color 0.15s ease;
+        transition: background-color 0.15s ease, outline 0.15s ease;
         font-size: 0.85rem;
         word-break: break-all;
         display: flex;
         flex-direction: column;
+        border-radius: 4px; /* Ensure rounded corners for focus outline */
+        margin-bottom: 2px;
     }
     
     #appList li .detail {
@@ -264,11 +293,14 @@
     #appList li:hover {
         background-color: var(--tertiary);
     }
-    
+
+    #appList li.focused {
+        background-color: #383838; /* Slightly darker than hover to distinguish */
+    }
+
     #appList li.selected {
         background-color: rgba(224, 75, 75, 0.4);
     }
-
   </style>
 </head>
 <body>
@@ -300,8 +332,8 @@
       </div>
 
       <div class="config-group" style="position: relative;">
-          <!-- Kill List Display (NEW) -->
-          <label for="appKillListContainer">Apps to Close</label>
+          <!-- Kill List Display -->
+          <label for="appKillListContainer">Apps to Close (Click '×' to Remove)</label>
           <div id="appKillListContainer">
               <ul id="killListDisplay">
                   <li style="text-align: center; color: #777; font-style: italic;">No apps selected</li>
@@ -343,7 +375,7 @@
               </ul>
           </div>
           <small style="margin-top: 10px; font-size: 0.7rem; color: #999; text-align: center;">
-            Click an app name to add/remove it from your kill list.
+            Click an app name or press **Enter** to add/remove it. Use **Arrow Keys** to navigate.
           </small>
       </div>
   </div>
