@@ -13,7 +13,8 @@
     :root {
       --bg: #1e1e1e;
       --text: #d4d4d4;
-      --primary: #E04B4B;
+      --primary: #E04B4B; /* Tomato Red for Focus */
+      --break: #4CAF50; /* Green for Break */
       --secondary: #333;
       --tertiary: #444; /* Used for hover/modal background */
     }
@@ -47,6 +48,13 @@
       font-size: 6rem;
       font-weight: 200;
       margin: 10px 0 10px 0;
+      color: var(--primary); /* Default color is Focus Red */
+      transition: color 0.3s;
+    }
+
+    /* *** NEW: Style for break mode timer text *** */
+    #timer.break-mode {
+      color: var(--break); /* Green for Break mode */
     }
 
     #status {
@@ -56,6 +64,11 @@
       text-transform: uppercase;
       color: var(--primary);
       margin-bottom: 10px;
+    }
+    
+    /* *** NEW: Style for break mode status text *** */
+    #status.break-mode {
+        color: var(--break);
     }
 
     .button-container {
@@ -80,13 +93,17 @@
       background-color: #444;
     }
 
-    #startStopBtn.running {
+    #startStopBtn {
       background-color: var(--primary);
+    }
+    
+    #startStopBtn.running {
+      background-color: var(--break);
       color: var(--bg);
     }
     
     #startStopBtn.running:hover {
-      background-color: #e66a6a;
+      background-color: #6DC071;
     }
     
     /* Configuration Panel Styles */
@@ -340,7 +357,7 @@
               </ul>
           </div>
           <!-- Hidden input to store JSON string for persistence -->
-          <input type="hidden" id="appKillListHidden"> 
+          <input type="hidden" id="appKillListHidden" value="[]">
           
           <div style="display: flex; justify-content: flex-end; margin-top: 5px;">
             <button id="showAppListBtn">Show Running Apps</button>
@@ -377,6 +394,18 @@
           <small style="margin-top: 10px; font-size: 0.7rem; color: #999; text-align: center;">
             Click an app name or press **Enter** to add/remove it. Use **Arrow Keys** to navigate.
           </small>
+          
+          <!-- *** NEW: Footer close button *** -->
+          <button id="closeAppListBtnFooter" style="
+            margin-top: 15px;
+            padding: 10px;
+            background-color: var(--tertiary);
+            border: none;
+            border-radius: 4px;
+            color: var(--text);
+            cursor: pointer;
+            font-weight: 600;
+          ">Done</button>
       </div>
   </div>
 

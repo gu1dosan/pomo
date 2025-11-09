@@ -9,9 +9,9 @@ const { contextBridge, ipcRenderer } = require('electron');
 // Expose a 'pomo' object to the window (frontend)
 contextBridge.exposeInMainWorld('pomo', {
   // Function to *start* the kill process, sends the list to main.js (used with ipcRenderer.send)
-  killApps: (appNames) => ipcRenderer.send('apps:kill', appNames),
+  killApps: (appIds) => ipcRenderer.send('apps:kill', appIds), // Send app IDs
   
-  // Function to *listen* for the reply from main.js (list of successfully killed apps)
+  // Function to *listen* for the reply from main.js (list of successfully killed app IDs)
   onKilledApps: (callback) => {
     const listener = (event, killedList) => callback(killedList);
     ipcRenderer.on('apps:kill-reply', listener);
@@ -19,16 +19,19 @@ contextBridge.exposeInMainWorld('pomo', {
     return () => ipcRenderer.removeListener('apps:kill-reply', listener);
   },
   
-  // Function to relaunch a list of apps after the focus session
-  relaunchApps: (appNames) => ipcRenderer.invoke('apps:relaunch', appNames),
+  // Function to relaunch a list of apps (sends full app objects)
+  relaunchApps: (appsToRelaunch) => ipcRenderer.invoke('apps:relaunch', appsToRelaunch),
   
+  // Function to list running apps
+  listApps: () => ipcRenderer.invoke('apps:list'),
+
   // Function to send a notification
   notify: (title, body) => ipcRenderer.invoke('notify', { title, body }),
   
   // Settings Persistence
   loadSettings: () => ipcRenderer.invoke('settings:load'),
   saveSettings: (settings) => ipcRenderer.invoke('settings:save', settings),
-  
-  // *** FIX: This function must be correctly exposed to the renderer process. ***
-  listApps: () => ipcRenderer.invoke('apps:list'),
+
+  // *** NEW: Function to update the tray icon based on mode ***
+  setMode: (mode) => ipcRenderer.send('set-mode', mode),
 });

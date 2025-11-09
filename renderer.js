@@ -26,6 +26,9 @@ const closeAppListBtn = document.getElementById('closeAppListBtn');
 const appListUL = document.getElementById('appList');
 const appListSearchInput = document.getElementById('appListSearchInput');
 
+// *** NEW: Modal close button in footer ***
+const closeAppListBtnFooter = document.getElementById('closeAppListBtnFooter');
+
 
 // --- State Variables ---
 let timerInterval = null;
@@ -33,47 +36,38 @@ let isRunning = false;
 let isFocus = true;
 let timeLeft; 
 let appKillList = []; // List of apps configured to be killed
-let killedAppsList = []; // List of structured app objects that were actually killed and need relaunching (FIXED to store structured data)
+let killedAppsList = []; // List of structured app objects that were actually killed
 let fullAppList = []; 
-// State for keyboard navigation focus in the modal
 let focusedAppIndex = -1; 
-// Array to store the actual LI elements that are currently visible/rendered
 let renderedAppElements = []; 
 
-
 // --- Event Listeners ---
-startStopBtn.addEventListener('click', toggleTimer);
+startStopBtn.addEventListener('click', toggleTimer); // <-- MODIFIED
 resetBtn.addEventListener('click', resetTimer);
 
-// Settings persistence listeners
 focusTimeInput.addEventListener('change', () => { resetTimer(); saveSettings(); });
 breakTimeInput.addEventListener('change', () => { resetTimer(); saveSettings(); });
 relaunchOptionalCheckbox.addEventListener('change', saveSettings);
 
-// App List Modal Listeners
 showAppListBtn.addEventListener('click', showRunningAppsModal);
 closeAppListBtn.addEventListener('click', hideRunningAppsModal);
+closeAppListBtnFooter.addEventListener('click', hideRunningAppsModal); // *** NEW ***
 appListModal.addEventListener('click', (e) => {
-    if (e.target.id === 'appListModal') {
+    // Check for overlay click
+    if (e.target.classList.contains('modal-overlay')) { 
         hideRunningAppsModal();
     }
 });
 
-// Search filter listener
 appListSearchInput.addEventListener('input', filterAppList);
-
-// Listener for removing apps from the main display list using delegation
 killListDisplayUL.addEventListener('click', handleRemoveFromKillList);
-
-// Listener for keyboard navigation (Arrow Keys, Enter)
 appListSearchInput.addEventListener('keydown', handleKeydown);
 
 
-// --- New Kill List Management Functions ---
+// --- Kill List Management Functions ---
 
-// Renders the internal appKillList array to the vertical display list
 function renderKillList() {
-    killListDisplayUL.innerHTML = ''; // Clear existing list
+    killListDisplayUL.innerHTML = ''; 
     
     if (appKillList.length === 0) {
         killListDisplayUL.innerHTML = '<li style="text-align: center; color: #777; font-style: italic;">No apps selected</li>';
@@ -82,29 +76,24 @@ function renderKillList() {
     
     appKillList.forEach((app, index) => {
         const li = document.createElement('li');
-        // Store index as a data attribute to make removal easy
         li.setAttribute('data-index', index); 
         
-        // Wrapper for text content
         const contentWrapper = document.createElement('div');
         contentWrapper.className = 'content-wrapper';
         
-        // Display Name
         const nameSpan = document.createElement('span');
         nameSpan.textContent = app.display;
         
-        // Detail (Path/Executable)
-        const detailSpan = document.createElement('span');
-        detailSpan.className = 'detail';
+        const detailSpan = document.createElement('small');
+        detailSpan.className = 'detail'; // Use class from index.html
         detailSpan.textContent = app.detail;
         
         contentWrapper.appendChild(nameSpan);
         contentWrapper.appendChild(detailSpan);
         
-        // Remove Button (X)
         const removeBtn = document.createElement('button');
         removeBtn.className = 'remove-app-btn';
-        removeBtn.textContent = '×'; // Unicode multiplication sign for a clean 'X'
+        removeBtn.textContent = '×'; 
         removeBtn.title = `Remove ${app.display}`;
         
         li.appendChild(contentWrapper);
@@ -114,19 +103,12 @@ function renderKillList() {
     });
 }
 
-// Saves the current appKillList array to the hidden input as JSON string and triggers persistence
 function saveKillListAndRender() {
-    // 1. Save the structured data
     appKillListHidden.value = JSON.stringify(appKillList);
-    
-    // 2. Render the display list
     renderKillList();
-    
-    // 3. Persist settings
     saveSettings();
 }
 
-// Handles clicking the remove button in the main kill list display
 function handleRemoveFromKillList(event) {
     const removeBtn = event.target.closest('.remove-app-btn');
     if (!removeBtn) return;
@@ -141,41 +123,33 @@ function handleRemoveFromKillList(event) {
         saveKillListAndRender();
         
         if (appListModal.style.display === 'flex') {
-            // Rerender with the full list to update selection status in the modal
             renderAppList(fullAppList); 
         }
     }
 }
 
-// Handles clicking an app in the modal list to add/remove it from the kill list
 function handleAppSelection(event) {
-    const target = event.target.closest('li') || (event.target.dataset && event.target);
-    const li = target.closest('li');
-    if (!li) return;
+    const target = event.target.closest('li');
+    if (!target) return;
     
-    const id = li.getAttribute('data-app-id');
-    const display = li.getAttribute('data-app-display');
-    const detail = li.getAttribute('data-app-detail');
+    const id = target.getAttribute('data-app-id');
+    const display = target.getAttribute('data-app-display');
+    const detail = target.getAttribute('data-app-detail');
     
-    // Create a unique key using both ID and detail (filepath) for reliability
     const uniqueKey = `${id}|${detail}`; 
 
     const existingIndex = appKillList.findIndex(app => `${app.id}|${app.detail}` === uniqueKey);
 
     if (existingIndex === -1) {
-        // ADD the app
         appKillList.push({ id, display, detail });
-        li.classList.add('selected');
+        target.classList.add('selected');
     } else {
-        // REMOVE the app
         appKillList.splice(existingIndex, 1);
-        li.classList.remove('selected');
+        target.classList.remove('selected');
     }
     
-    // Sort the list alphabetically by display name
     appKillList.sort((a, b) => a.display.localeCompare(b.display));
     
-    // Update the saved data and UI
     saveKillListAndRender();
 }
 
@@ -186,9 +160,8 @@ async function showRunningAppsModal() {
     appListModal.style.display = 'flex';
     appListUL.innerHTML = '<li style="text-align: center; color: #aaa;">Fetching list of running apps...</li>';
     appListSearchInput.value = ''; 
-    focusedAppIndex = -1; // Reset focus state on open
-    
-    // 1. Automatically focus the search input when the modal opens
+    focusedAppIndex = -1;
+
     setTimeout(() => {
         appListSearchInput.focus();
     }, 100); 
@@ -210,7 +183,7 @@ async function showRunningAppsModal() {
 
 function hideRunningAppsModal() {
     appListModal.style.display = 'none';
-    focusedAppIndex = -1; // Reset focus state
+    focusedAppIndex = -1;
 }
 
 function filterAppList() {
@@ -225,24 +198,18 @@ function filterAppList() {
     renderAppList(filteredApps);
 }
 
-
-// Function to visually manage keyboard focus
 function focusApp(index) {
-    // 1. Remove focus from previous element
     if (focusedAppIndex >= 0 && renderedAppElements[focusedAppIndex]) {
         renderedAppElements[focusedAppIndex].classList.remove('focused');
     }
 
-    // 2. Set new index and apply focus class
     focusedAppIndex = index;
     if (renderedAppElements[focusedAppIndex]) {
         renderedAppElements[focusedAppIndex].classList.add('focused');
-        // Ensure the focused item is visible in the scroll container
         renderedAppElements[focusedAppIndex].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
 }
 
-// Keydown handler for keyboard navigation in the app list modal
 function handleKeydown(event) {
     if (appListModal.style.display !== 'flex') return;
     
@@ -251,25 +218,21 @@ function handleKeydown(event) {
     switch (event.key) {
         case 'ArrowDown':
             if (maxIndex < 0) return;
-            event.preventDefault(); // Prevent page scroll
-            // Cycle focus: If at end, go to 0. Otherwise, increment.
+            event.preventDefault(); 
             const nextIndex = (focusedAppIndex < maxIndex) ? focusedAppIndex + 1 : 0;
             focusApp(nextIndex);
             break;
             
         case 'ArrowUp':
             if (maxIndex < 0) return;
-            event.preventDefault(); // Prevent page scroll
-            // Cycle focus: If at start (or -1), go to end. Otherwise, decrement.
+            event.preventDefault(); 
             const prevIndex = (focusedAppIndex <= 0) ? maxIndex : focusedAppIndex - 1;
             focusApp(prevIndex);
             break;
             
         case 'Enter':
-            // Only act on Enter if an item is actually focused
             if (focusedAppIndex >= 0 && renderedAppElements[focusedAppIndex]) {
-                event.preventDefault(); // Prevent form submission/other default action
-                // Simulate a click on the focused list item
+                event.preventDefault();
                 handleAppSelection({ target: renderedAppElements[focusedAppIndex] });
             }
             break;
@@ -280,11 +243,10 @@ function handleKeydown(event) {
     }
 }
 
-
 function renderAppList(apps) {
     appListUL.innerHTML = ''; 
-    renderedAppElements = []; // Reset the stored list elements
-    focusedAppIndex = -1; // Reset focus state
+    renderedAppElements = [];
+    focusedAppIndex = -1;
 
     if (!Array.isArray(apps) || apps.length === 0 || (apps[0].id === 'Error')) {
         const errorMsg = apps.length > 0 ? apps[0].display : 'No running apps found.';
@@ -292,42 +254,35 @@ function renderAppList(apps) {
         return;
     }
 
-    // Determine which apps are currently selected in the kill list
     const killListKeys = appKillList.map(app => `${app.id}|${app.detail}`);
 
-    // Render the provided (filtered or full) list
-    apps.forEach((app, index) => { 
+    apps.forEach((app) => { 
         const li = document.createElement('li');
         li.setAttribute('data-app-id', app.id);
         li.setAttribute('data-app-display', app.display);
         li.setAttribute('data-app-detail', app.detail);
         
-        // Display Name
         const nameSpan = document.createElement('span');
         nameSpan.textContent = app.display;
         
-        // Detail (Path/Executable)
-        const detailSpan = document.createElement('span');
+        const detailSpan = document.createElement('small');
         detailSpan.className = 'detail';
         detailSpan.textContent = app.detail;
         
         li.appendChild(nameSpan);
         li.appendChild(detailSpan);
 
-        // Check if selected
         const appKey = `${app.id}|${app.detail}`;
         if (killListKeys.includes(appKey)) {
              li.classList.add('selected');
         }
 
-        // Add click handler 
         li.addEventListener('click', handleAppSelection);
         
         appListUL.appendChild(li);
-        renderedAppElements.push(li); // Store the actual element
+        renderedAppElements.push(li);
     });
     
-    // Automatically focus the first element if results exist
     if (renderedAppElements.length > 0) {
         focusApp(0);
     }
@@ -340,7 +295,6 @@ function getSettingsFromDOM() {
     return {
         focusTime: parseInt(focusTimeInput.value) || 25,
         breakTime: parseInt(breakTimeInput.value) || 5,
-        // Save the structured JSON string
         appKillList: appKillListHidden.value, 
         relaunchOptional: relaunchOptionalCheckbox.checked,
     };
@@ -354,12 +308,10 @@ function saveSettings() {
 async function initializeSettings() {
     const settings = await window.pomo.loadSettings();
     
-    // Apply loaded settings to DOM inputs
     focusTimeInput.value = settings.focusTime;
     breakTimeInput.value = settings.breakTime;
     relaunchOptionalCheckbox.checked = settings.relaunchOptional;
     
-    // Load and parse the structured app list
     try {
         appKillList = JSON.parse(settings.appKillList || '[]');
     } catch (e) {
@@ -367,80 +319,96 @@ async function initializeSettings() {
         appKillList = [];
     }
 
-    // Save and render the loaded list
     saveKillListAndRender();
-
-    // Initialize timer state based on loaded settings
     readConfig();
     updateDisplay();
+    
+    // *** NEW: Set initial tray icon to focus (red) ***
+    window.pomo.setMode('focus'); 
 }
 
-
-// Promisify the async kill operation
-// The main process is expected to return the list of IDs (strings) that it successfully killed.
-function killAppsAndReport(appIds) {
+function killAppsAndReport() {
     return new Promise((resolve) => {
-        const removeListener = window.pomo.onKilledApps((killedList) => {
-            resolve(killedList);
+        // Get the list of IDs to send to the kill command
+        const appIdsToKill = appKillList.map(app => app.id);
+
+        const removeListener = window.pomo.onKilledApps((killedAppIds) => {
+            // Store the full structured app object for only those confirmed as killed
+            const confirmedKilledApps = appKillList.filter(app => 
+                killedAppIds.includes(app.id)
+            );
+            console.log(`Renderer: ${confirmedKilledApps.length} apps confirmed for relaunch.`);
+            resolve(confirmedKilledApps); // Resolve with the full structured objects
             removeListener();
         });
-        window.pomo.killApps(appIds);
-        console.log(`Renderer: Sent kill command for ${appIds.length} configured apps.`);
+        window.pomo.killApps(appIdsToKill); 
+        console.log(`Renderer: Sent kill command for ${appIdsToKill.length} configured apps.`);
     });
 }
 
-
-// Reads configuration from inputs and updates state
 function readConfig() {
-  const focusMin = parseInt(focusTimeInput.value) * 60;
-  const breakMin = parseInt(breakTimeInput.value) * 60;
-  
-  timeLeft = isFocus ? focusMin : breakMin;
+    const focusMin = parseInt(focusTimeInput.value, 10) * 60;
+    const breakMin = parseInt(breakTimeInput.value, 10) * 60;
+    
+    let newTime = isFocus ? focusMin : breakMin;
 
-  if (isNaN(timeLeft) || timeLeft <= 0) {
-      focusTimeInput.value = 25; 
-      breakTimeInput.value = 5;
-      timeLeft = (isFocus ? 25 : 5) * 60;
-  }
+    if (isNaN(newTime) || newTime <= 0) {
+        focusTimeInput.value = 25; 
+        breakTimeInput.value = 5;
+        newTime = (isFocus ? 25 : 5) * 60;
+    }
+    
+    timeLeft = newTime; // Always set to full duration
 }
 
+// *** MODIFIED: This function now handles both START and RESUME ***
 async function toggleTimer() {
   if (isRunning) {
-    stopTimer();
+    // --- PAUSING ---
+    stopTimer(); // stopTimer is now just "Pause"
   } else {
-    readConfig();
-    await startTimer();
+    // --- STARTING or RESUMING ---
+    
+    // Check if this is a fresh start (timer is at max)
+    const focusMin = parseInt(focusTimeInput.value, 10) * 60;
+    const breakMin = parseInt(breakTimeInput.value, 10) * 60;
+    // Use readConfig's logic to determine the *intended* full duration
+    const fullDuration = isFocus ? (isNaN(focusMin) ? 25 * 60 : focusMin) : (isNaN(breakMin) ? 5 * 60 : breakMin);
+
+    // Only kill apps if it's a new FOCUS session starting from the beginning
+    if (isFocus && timeLeft === fullDuration) {
+        console.log("Beginning new focus session, killing apps...");
+        killedAppsList = await killAppsAndReport();
+    }
+    
+    // Now, resume the timer
+    isRunning = true;
+    startStopBtn.textContent = 'Pause';
+    startStopBtn.classList.add('running');
+    
+    // *** NEW: Set icon to current mode (focus or break) when resuming ***
+    window.pomo.setMode(isFocus ? 'focus' : 'break');
+
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(updateTimer, 1000);
   }
 }
 
+// This function is now ONLY for starting a new session (called by switchMode)
 async function startTimer() {
   isRunning = true;
   startStopBtn.textContent = 'Pause';
   startStopBtn.classList.add('running');
   
   if (isFocus) {
-    // 1. Get the list of IDs to send to the kill command
-    const appIdsToKill = appKillList.map(app => app.id);
-    
-    // 2. Kill the apps and get the confirmed IDs back from the main process
-    const confirmedKilledAppIds = await killAppsAndReport(appIdsToKill);
-    
-    // 3. Store the full structured app object for only those confirmed as killed.
-    // This provides the necessary path/detail for reliable relaunch.
-    killedAppsList = appKillList.filter(app => 
-        confirmedKilledAppIds.includes(app.id)
-    );
-
-    console.log('Renderer: Killed apps confirmed:', confirmedKilledAppIds);
-
-    console.log(`Renderer: ${killedAppsList.length} apps confirmed for relaunch.`);
+    // This is correct: a new focus session always kills apps
+    killedAppsList = await killAppsAndReport(); 
   }
   
   if (timerInterval) clearInterval(timerInterval);
   timerInterval = setInterval(updateTimer, 1000);
 }
 
-// Helper function to relaunch apps
 function relaunchKilledApps() {
     if (!relaunchOptionalCheckbox.checked) {
         console.log('Renderer: Auto-relaunch disabled by user setting.');
@@ -450,23 +418,24 @@ function relaunchKilledApps() {
     
     if (killedAppsList.length > 0) {
         console.log('Renderer: Relaunching previously closed apps:', killedAppsList);
-        // Send the FULL structured list for reliable relaunching
         window.pomo.relaunchApps(killedAppsList); 
         killedAppsList = [];
     }
 }
 
-
+// *** MODIFIED: This function is now just "Pause" ***
 function stopTimer() {
   isRunning = false;
   startStopBtn.textContent = 'Start';
   startStopBtn.classList.remove('running');
   
   clearInterval(timerInterval);
+  timerInterval = null; // Explicitly null the interval
   
-  if (!isFocus) { // Relaunch happens when break mode stops
-      relaunchKilledApps();
-  }
+  // *** NEW: Set icon to 'paused' (green) ***
+  window.pomo.setMode('paused');
+
+  // Relaunch logic removed from here
 }
 
 function updateTimer() {
@@ -480,41 +449,51 @@ function updateTimer() {
 }
 
 async function switchMode() {
+  stopTimer(); // Stop the current timer
   isFocus = !isFocus;
-  readConfig(); 
+  readConfig(); // Set timeLeft to the full duration for the new mode
+
+  // *** NEW: Tell main.js to update the icon ***
+  const mode = isFocus ? 'focus' : 'break';
+  window.pomo.setMode(mode);
 
   if (isFocus) {
     // --- STARTING FOCUS (ASYNC) ---
     statusDisplay.textContent = 'Focus';
+    statusDisplay.classList.remove('break-mode');
+    timerDisplay.classList.remove('break-mode'); // Use CSS class to change color
     window.pomo.notify('Break Over!', `Time for a ${focusTimeInput.value}-minute focus session.`);
     
-    const appIdsToKill = appKillList.map(app => app.id);
-    const confirmedKilledAppIds = await killAppsAndReport(appIdsToKill);
+    // startTimer will kill apps
     
-    // Store the full structured list for reliable relaunch
-    killedAppsList = appKillList.filter(app => 
-        confirmedKilledAppIds.includes(app.id)
-    );
-
   } else {
     // --- STARTING BREAK ---
     statusDisplay.textContent = 'Break';
+    statusDisplay.classList.add('break-mode');
+    timerDisplay.classList.add('break-mode'); // Use CSS class to change color
     window.pomo.notify('Focus Session Done!', `Time for a ${breakTimeInput.value}-minute break!`);
     
     relaunchKilledApps();
   }
   
-  // Restart the timer automatically for the next session
+  // Restart the timer automatically for the new session
   startTimer(); 
 }
 
 function resetTimer() {
-  stopTimer();
+  stopTimer(); // Pauses the timer
   isFocus = true;
-  readConfig();
+  readConfig(); // Resets timeLeft to full focus time
   statusDisplay.textContent = 'Focus';
+  statusDisplay.classList.remove('break-mode');
+  timerDisplay.classList.remove('break-mode'); // Ensure color is red
+  
+  // *** NEW: Reset icon to focus (red) ***
+  window.pomo.setMode('focus'); 
+  
   updateDisplay();
   
+  // Relaunch any apps if timer is reset during a break
   relaunchKilledApps();
 }
 
@@ -524,7 +503,6 @@ function updateDisplay() {
   timerDisplay.textContent = `${pad(minutes)}:${pad(seconds)}`;
 }
 
-// Helper function to add leading zeros
 function pad(num) {
   return num < 10 ? '0' + num : num;
 }
