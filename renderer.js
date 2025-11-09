@@ -32,10 +32,10 @@ let timerInterval = null;
 let isRunning = false;
 let isFocus = true;
 let timeLeft; 
-let appKillList = []; 
-let killedAppIds = []; 
+let appKillList = []; // List of apps configured to be killed
+let killedAppsList = []; // List of structured app objects that were actually killed and need relaunching (FIXED to store structured data)
 let fullAppList = []; 
-// NEW: State for keyboard navigation focus in the modal
+// State for keyboard navigation focus in the modal
 let focusedAppIndex = -1; 
 // Array to store the actual LI elements that are currently visible/rendered
 let renderedAppElements = []; 
@@ -65,7 +65,7 @@ appListSearchInput.addEventListener('input', filterAppList);
 // Listener for removing apps from the main display list using delegation
 killListDisplayUL.addEventListener('click', handleRemoveFromKillList);
 
-// NEW: Listener for keyboard navigation (Arrow Keys, Enter)
+// Listener for keyboard navigation (Arrow Keys, Enter)
 appListSearchInput.addEventListener('keydown', handleKeydown);
 
 
@@ -157,6 +157,7 @@ function handleAppSelection(event) {
     const display = li.getAttribute('data-app-display');
     const detail = li.getAttribute('data-app-detail');
     
+    // Create a unique key using both ID and detail (filepath) for reliability
     const uniqueKey = `${id}|${detail}`; 
 
     const existingIndex = appKillList.findIndex(app => `${app.id}|${app.detail}` === uniqueKey);
@@ -326,7 +327,7 @@ function renderAppList(apps) {
         renderedAppElements.push(li); // Store the actual element
     });
     
-    // NEW: Automatically focus the first element if results exist
+    // Automatically focus the first element if results exist
     if (renderedAppElements.length > 0) {
         focusApp(0);
     }
@@ -376,6 +377,7 @@ async function initializeSettings() {
 
 
 // Promisify the async kill operation
+// The main process is expected to return the list of IDs (strings) that it successfully killed.
 function killAppsAndReport(appIds) {
     return new Promise((resolve) => {
         const removeListener = window.pomo.onKilledApps((killedList) => {
@@ -417,14 +419,21 @@ async function startTimer() {
   startStopBtn.classList.add('running');
   
   if (isFocus) {
-    // Get only the 'id' (the value needed for the kill command) from the structured list
+    // 1. Get the list of IDs to send to the kill command
     const appIdsToKill = appKillList.map(app => app.id);
     
+    // 2. Kill the apps and get the confirmed IDs back from the main process
     const confirmedKilledAppIds = await killAppsAndReport(appIdsToKill);
     
-    // Save only the IDs that were confirmed to be killed
-    killedAppIds = confirmedKilledAppIds;
-    console.log(`Renderer: ${killedAppIds.length} apps confirmed for relaunch.`);
+    // 3. Store the full structured app object for only those confirmed as killed.
+    // This provides the necessary path/detail for reliable relaunch.
+    killedAppsList = appKillList.filter(app => 
+        confirmedKilledAppIds.includes(app.id)
+    );
+
+    console.log('Renderer: Killed apps confirmed:', confirmedKilledAppIds);
+
+    console.log(`Renderer: ${killedAppsList.length} apps confirmed for relaunch.`);
   }
   
   if (timerInterval) clearInterval(timerInterval);
@@ -435,14 +444,15 @@ async function startTimer() {
 function relaunchKilledApps() {
     if (!relaunchOptionalCheckbox.checked) {
         console.log('Renderer: Auto-relaunch disabled by user setting.');
-        killedAppIds = [];
+        killedAppsList = [];
         return;
     }
     
-    if (killedAppIds.length > 0) {
-        console.log('Renderer: Relaunching previously closed apps:', killedAppIds);
-        window.pomo.relaunchApps(killedAppIds);
-        killedAppIds = [];
+    if (killedAppsList.length > 0) {
+        console.log('Renderer: Relaunching previously closed apps:', killedAppsList);
+        // Send the FULL structured list for reliable relaunching
+        window.pomo.relaunchApps(killedAppsList); 
+        killedAppsList = [];
     }
 }
 
@@ -480,7 +490,11 @@ async function switchMode() {
     
     const appIdsToKill = appKillList.map(app => app.id);
     const confirmedKilledAppIds = await killAppsAndReport(appIdsToKill);
-    killedAppIds = confirmedKilledAppIds;
+    
+    // Store the full structured list for reliable relaunch
+    killedAppsList = appKillList.filter(app => 
+        confirmedKilledAppIds.includes(app.id)
+    );
 
   } else {
     // --- STARTING BREAK ---
